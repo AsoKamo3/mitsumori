@@ -74,11 +74,6 @@ def get_subs():
 def get_details():
     """
     指定された大項目＋小項目に属する詳細一覧を返す
-    クエリ: ?major_code=05&sub_code=50
-    例: [
-      {"code": "CRANE", "name": "撮影用クレーン Crane", "unit_price": 150000, "person": "..."},
-      ...
-    ]
     """
     major_code = request.args.get("major_code")
     sub_code = request.args.get("sub_code")
@@ -87,13 +82,15 @@ def get_details():
     for row in MASTER:
         if row["major_code"] == major_code and row["sub_code"] == sub_code:
             details.append({
-                "code": row["detail_code"],
-                "name": row["detail_name"],
-                "unit_price": row["unit_price"],
-                "person": row.get("person", ""),
+                "code": row["detail_code"],      # 01,02,03...
+                "name": row["detail_name"],      # 「摘要」として使う文字列
+                "unit_price": row["unit_price"], # 単価
             })
 
     return jsonify(details)
+
+
+
 
 
 if __name__ == "__main__":
