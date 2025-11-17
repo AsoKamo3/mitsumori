@@ -1,33 +1,47 @@
+const UNIT_OPTIONS = [
+  "式", "日", "時", "本", "台", "人", "人日", "個", "カット", "点", "枚"
+];
+
 async function fetchJSON(url) {
   const res = await fetch(url);
   return await res.json();
 }
 
 async function initRow(tr) {
-  const majorSelect   = tr.querySelector('.major');
-  const subCodeSelect = tr.querySelector('.sub-code');
-  const subNameInput  = tr.querySelector('.sub-name');
-  const detailSelect  = tr.querySelector('.detail');
-  const codeInput     = tr.querySelector('.code');
-  const nameInput     = tr.querySelector('.name');
-  const unitInput     = tr.querySelector('.unit');
-  const qtyInput      = tr.querySelector('.qty');
-  const amountInput   = tr.querySelector('.amount');
+  const majorSelect    = tr.querySelector('.major');
+  const subCodeSelect  = tr.querySelector('.sub-code');
+  const subNameInput   = tr.querySelector('.sub-name');
+  const detailSelect   = tr.querySelector('.detail');
+  const codeInput      = tr.querySelector('.code');
+  const unitPriceInput = tr.querySelector('.unit-price');
+  const qtyInput       = tr.querySelector('.qty');
+  const unitTypeSelect = tr.querySelector('.unit-type');
+  const amountInput    = tr.querySelector('.amount');
 
-  // 大項目一覧をロード（科目）
+  // 単位の選択肢をセット
+  unitTypeSelect.innerHTML = '<option value="">--</option>';
+  UNIT_OPTIONS.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u;
+    opt.textContent = u;
+    unitTypeSelect.appendChild(opt);
+  });
+
+  // 科目（大項目）一覧をロード
   const majors = await fetchJSON('/api/majors');
   majorSelect.innerHTML = '<option value="">--選択--</option>';
   majors.forEach(m => {
     const opt = document.createElement('option');
-    opt.value = m.code;                // "01"
+    opt.value = m.code;                      // "01"
     opt.textContent = `${m.code} ${m.name}`; // "01 映像企画関連費"
     majorSelect.appendChild(opt);
   });
 
-  // 大項目が変わったら → 費目コード一覧を取得・表示
+  // 科目変更 → 費目コード一覧をロード
   majorSelect.addEventListener('change', async () => {
     const majorCode = majorSelect.value;
-    // リセット
+
+    // 一旦リセット
     subCodeSelect.innerHTML = '<option value="">--選択--</option>';
     subNameInput.value = '';
     detailSelect.innerHTML = '<option value="">--選択--</option>';
@@ -39,44 +53,48 @@ async function initRow(tr) {
       `/api/subs?major_code=${encodeURIComponent(majorCode)}`
     );
 
-    // コード→名称のマップをこの行の中で持つ
+    // コード → 名称のマップをこの行の中だけで保持
     const subMap = {};
     subs.forEach(s => {
-      subMap[s.code] = s.name;
+      subMap[s.code] = s.name; // "50" -> "アートディレクター費"
       const opt = document.createElement('option');
-      opt.value = s.code;   // "50"
+      opt.value = s.code;
       opt.textContent = s.code; // 表示は番号だけ
       subCodeSelect.appendChild(opt);
     });
 
-    // 費目コードが変わったら → 費目名称の表示＆摘要候補（details）取得
-    subCodeSelect.onchange = async () => {
-      const subCode = subCodeSelect.value;
-      subNameInput.value = subMap[subCode] || '';  // "アートディレクター費" など表示
-      detailSelect.innerHTML = '<option value="">--選択--</option>';
-      resetDetailFields();
-
-      if (!subCode) return;
-
-      const details = await fetchJSON(
-        `/api/details?major_code=${encodeURIComponent(majorCode)}&sub_code=${encodeURIComponent(subCode)}`
-      );
-
-      details.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d.code; // detail_code
-        // person があれば person をラベルに、なければ品目名
-        const label = d.person && d.person.trim() !== "" ? d.person : d.name;
-        opt.textContent = label;
-        opt.dataset.unit = d.unit_price;
-        opt.dataset.person = d.person || '';
-        opt.dataset.detailName = d.name; // 品目名（detail_name）を保持
-        detailSelect.appendChild(opt);
-      });
-    };
+    // まず map を element に覚えさせる（後から使う）
+    subCodeSelect._subMap = subMap;
+    subCodeSelect._majorCode = majorCode;
   });
 
-  // 摘要（detail）が変わったら → コード・品目名・単価・金額を更新
+  // 費目コード変更 → 費目名表示＆摘要候補をロード
+  subCodeSelect.addEventListener('change', async () => {
+    const subMap    = subCodeSelect._subMap || {};
+    const majorCode = subCodeSelect._majorCode || '';
+    const subCode   = subCodeSelect.value;
+
+    subNameInput.value = subMap[subCode] || '';
+    detailSelect.innerHTML = '<option value="">--選択--</option>';
+    resetDetailFields();
+
+    if (!majorCode || !subCode) return;
+
+    const details = await fetchJSON(
+      `/api/details?major_code=${encodeURIComponent(majorCode)}&sub_code=${encodeURIComponent(subCode)}`
+    );
+
+    details.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.code;       // 摘要コード 01,02,03...
+      opt.textContent = d.name; // 摘要（detail_name）
+      opt.dataset.unit = d.unit_price;
+      opt.dataset.detailName = d.name;
+      detailSelect.appendChild(opt);
+    });
+  });
+
+  // 摘要変更 → コード・単価・金額を更新
   detailSelect.addEventListener('change', () => {
     const selected = detailSelect.options[detailSelect.selectedIndex];
     if (!selected || !selected.value) {
@@ -84,32 +102,28 @@ async function initRow(tr) {
       return;
     }
 
-    const majorCode = majorSelect.value;
-    const subCode   = subCodeSelect.value;
-    const detailCode = selected.value;
+    const majorCode  = majorSelect.value;
+    const subCode    = subCodeSelect.value;
+    const detailCode = selected.value; // detail_code
 
-    const detailName = selected.dataset.detailName || '';
-    const unit       = selected.dataset.unit || '';
+    const unit = selected.dataset.unit || '';
 
-    // コードは 01-50-AD の形式
+    // 管理コード：01-50-01 形式
     codeInput.value = `${majorCode}-${subCode}-${detailCode}`;
-    // 品目名は detail_name をセット（アートディレクター / 撮影用クレーン Dolly など）
-    nameInput.value = detailName;
-    unitInput.value = unit;
+    unitPriceInput.value = unit;
 
     calcAmount();
   });
 
   function calcAmount() {
-    const unit = parseInt(unitInput.value || "0", 10);
-    const qty  = parseInt(qtyInput.value || "0", 10);
-    amountInput.value = unit * qty;
+    const unitPrice = parseInt(unitPriceInput.value || "0", 10);
+    const qty       = parseInt(qtyInput.value || "0", 10);
+    amountInput.value = unitPrice * qty;
   }
 
   function resetDetailFields() {
     codeInput.value = '';
-    nameInput.value = '';
-    unitInput.value = '';
+    unitPriceInput.value = '';
     amountInput.value = '';
   }
 
