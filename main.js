@@ -1,65 +1,95 @@
+const UNIT_OPTIONS = [
+  "式", "日", "時", "本", "台", "人", "人日", "個", "カット", "点", "枚"
+];
+
 async function fetchJSON(url) {
   const res = await fetch(url);
   return await res.json();
 }
 
 async function initRow(tr) {
-  const majorSelect  = tr.querySelector('.major');
-  const subSelect    = tr.querySelector('.sub');
-  const detailSelect = tr.querySelector('.detail');
-  const codeInput    = tr.querySelector('.code');
-  const nameInput    = tr.querySelector('.name');
-  const personInput  = tr.querySelector('.person');
-  const unitInput    = tr.querySelector('.unit');
-  const qtyInput     = tr.querySelector('.qty');
-  const amountInput  = tr.querySelector('.amount');
+  const majorSelect   = tr.querySelector('.major');
+  const subCodeSelect = tr.querySelector('.sub-code');
+  const subNameInput  = tr.querySelector('.sub-name');
+  const detailSelect  = tr.querySelector('.detail');
+  const codeInput     = tr.querySelector('.code');
+  const unitPriceInput = tr.querySelector('.unit-price');
+  const qtyInput      = tr.querySelector('.qty');
+  const unitTypeSelect = tr.querySelector('.unit-type');
+  const amountInput   = tr.querySelector('.amount');
 
-  // 大項目一覧をロード
+  // 単位選択肢をセット
+  unitTypeSelect.innerHTML = '<option value="">--</option>';
+  UNIT_OPTIONS.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u;
+    opt.textContent = u;
+    unitTypeSelect.appendChild(opt);
+  });
+
+  // 科目（大項目）一覧をロード
   const majors = await fetchJSON('/api/majors');
   majorSelect.innerHTML = '<option value="">--選択--</option>';
   majors.forEach(m => {
     const opt = document.createElement('option');
-    opt.value = m.code;
-    opt.textContent = `${m.code} ${m.name}`;
+    opt.value = m.code;                      // "01"
+    opt.textContent = `${m.code} ${m.name}`; // "01 映像企画関連費"
     majorSelect.appendChild(opt);
   });
 
+  // 科目が変わったとき → 費目コード一覧をロード
   majorSelect.addEventListener('change', async () => {
     const majorCode = majorSelect.value;
-    subSelect.innerHTML = '<option value="">--選択--</option>';
+
+    subCodeSelect.innerHTML = '<option value="">--選択--</option>';
+    subNameInput.value = '';
     detailSelect.innerHTML = '<option value="">--選択--</option>';
     resetDetailFields();
+
     if (!majorCode) return;
 
-    const subs = await fetchJSON(`/api/subs?major_code=${encodeURIComponent(majorCode)}`);
+    const subs = await fetchJSON(
+      `/api/subs?major_code=${encodeURIComponent(majorCode)}`
+    );
+
+    // コード→名称のマップをこの行の中だけで保持
+    const subMap = {};
     subs.forEach(s => {
+      subMap[s.code] = s.name; // "50" -> "アートディレクター費"
       const opt = document.createElement('option');
       opt.value = s.code;
-      opt.textContent = `${s.code} ${s.name}`;
-      subSelect.appendChild(opt);
+      opt.textContent = s.code; // 表示は番号だけ
+      subCodeSelect.appendChild(opt);
     });
+
+    // 費目コードが変わったとき → 費目名＆摘要候補を更新
+    subCodeSelect.onchange = async () => {
+      const subCode = subCodeSelect.value;
+      subNameInput.value = subMap[subCode] || '';
+      detailSelect.innerHTML = '<option value="">--選択--</option>';
+      resetDetailFields();
+
+      if (!subCode) return;
+
+      const details = await fetchJSON(
+        `/api/details?major_code=${encodeURIComponent(majorCode)}&sub_code=${encodeURIComponent(subCode)}`
+      );
+
+      details.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.code; // detail_code（ここを 01,02,03 にすれば 01-50-01 形式が作れる）
+        // person があれば摘要として person を表示、なければ detail_name
+        const label = d.person && d.person.trim() !== "" ? d.person : d.name;
+        opt.textContent = label;
+        opt.dataset.unit = d.unit_price;
+        opt.dataset.person = d.person || '';
+        opt.dataset.detailName = d.name; // CSVのdetail_name（内部用）
+        detailSelect.appendChild(opt);
+      });
+    };
   });
 
-  subSelect.addEventListener('change', async () => {
-    const majorCode = majorSelect.value;
-    const subCode   = subSelect.value;
-    detailSelect.innerHTML = '<option value="">--選択--</option>';
-    resetDetailFields();
-    if (!majorCode || !subCode) return;
-
-    const details = await fetchJSON(
-      `/api/details?major_code=${encodeURIComponent(majorCode)}&sub_code=${encodeURIComponent(subCode)}`
-    );
-    details.forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.code;
-      opt.textContent = d.name;
-      opt.dataset.unit = d.unit_price;
-      opt.dataset.person = d.person || '';
-      detailSelect.appendChild(opt);
-    });
-  });
-
+  // 摘要が変わったとき → コード・単価・金額を更新
   detailSelect.addEventListener('change', () => {
     const selected = detailSelect.options[detailSelect.selectedIndex];
     if (!selected || !selected.value) {
@@ -68,27 +98,27 @@ async function initRow(tr) {
     }
 
     const majorCode  = majorSelect.value;
-    const subCode    = subSelect.value;
-    const detailCode = selected.value;
+    const subCode    = subCodeSelect.value;
+    const detailCode = selected.value; // ここが "01" "02" などの摘要コード
 
-    codeInput.value   = `${majorCode}-${subCode}-${detailCode}`;
-    nameInput.value   = selected.textContent;
-    personInput.value = selected.dataset.person || '';
-    unitInput.value   = selected.dataset.unit || '';
+    const unit = selected.dataset.unit || '';
+
+    // コード: 01-50-01 形式
+    codeInput.value = `${majorCode}-${subCode}-${detailCode}`;
+    unitPriceInput.value = unit;
+
     calcAmount();
   });
 
   function calcAmount() {
-    const unit = parseInt(unitInput.value || "0", 10);
-    const qty  = parseInt(qtyInput.value || "0", 10);
-    amountInput.value = unit * qty;
+    const unitPrice = parseInt(unitPriceInput.value || "0", 10);
+    const qty       = parseInt(qtyInput.value || "0", 10);
+    amountInput.value = unitPrice * qty;
   }
 
   function resetDetailFields() {
-    codeInput.value   = '';
-    nameInput.value   = '';
-    personInput.value = '';
-    unitInput.value   = '';
+    codeInput.value = '';
+    unitPriceInput.value = '';
     amountInput.value = '';
   }
 
@@ -100,9 +130,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   await initRow(firstRow);
 
   document.getElementById('addRow').addEventListener('click', async () => {
-    const tbody  = document.querySelector('#lines tbody');
+    const tbody   = document.querySelector('#lines tbody');
     const baseRow = tbody.rows[0];
-    const newRow = baseRow.cloneNode(true);
+    const newRow  = baseRow.cloneNode(true);
 
     // 値をリセット
     newRow.querySelectorAll('select').forEach(sel => {
