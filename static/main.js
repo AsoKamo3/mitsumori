@@ -1,10 +1,35 @@
 const UNIT_OPTIONS = [
   "式", "日", "時", "本", "台", "人", "人日", "個", "カット", "点", "枚"
 ];
+const TAX_RATE = 0.10; // 10% 消費税
 
 async function fetchJSON(url) {
   const res = await fetch(url);
   return await res.json();
+}
+
+// 合計計算
+function recalcTotals() {
+  const amountInputs = document.querySelectorAll('#lines tbody .amount');
+  let subtotal = 0;
+
+  amountInputs.forEach(inp => {
+    const v = parseInt(inp.value || "0", 10);
+    if (!isNaN(v)) {
+      subtotal += v;
+    }
+  });
+
+  const tax = Math.floor(subtotal * TAX_RATE); // 端数切り捨て（必要に応じて調整可）
+  const total = subtotal + tax;
+
+  const subtotalSpan = document.getElementById('subtotal');
+  const taxSpan = document.getElementById('tax');
+  const totalSpan = document.getElementById('total');
+
+  if (subtotalSpan) subtotalSpan.textContent = subtotal.toString();
+  if (taxSpan) taxSpan.textContent = tax.toString();
+  if (totalSpan) totalSpan.textContent = total.toString();
 }
 
 async function initRow(tr) {
@@ -17,6 +42,7 @@ async function initRow(tr) {
   const qtyInput       = tr.querySelector('.qty');
   const unitTypeSelect = tr.querySelector('.unit-type');
   const amountInput    = tr.querySelector('.amount');
+  const deleteButton   = tr.querySelector('.delete-row');
 
   // 単位の選択肢をセット
   unitTypeSelect.innerHTML = '<option value="">--</option>';
@@ -47,7 +73,10 @@ async function initRow(tr) {
     detailSelect.innerHTML = '<option value="">--選択--</option>';
     resetDetailFields();
 
-    if (!majorCode) return;
+    if (!majorCode) {
+      recalcTotals();
+      return;
+    }
 
     const subs = await fetchJSON(
       `/api/subs?major_code=${encodeURIComponent(majorCode)}`
@@ -63,7 +92,6 @@ async function initRow(tr) {
       subCodeSelect.appendChild(opt);
     });
 
-    // まず map を element に覚えさせる（後から使う）
     subCodeSelect._subMap = subMap;
     subCodeSelect._majorCode = majorCode;
   });
@@ -78,7 +106,10 @@ async function initRow(tr) {
     detailSelect.innerHTML = '<option value="">--選択--</option>';
     resetDetailFields();
 
-    if (!majorCode || !subCode) return;
+    if (!majorCode || !subCode) {
+      recalcTotals();
+      return;
+    }
 
     const details = await fetchJSON(
       `/api/details?major_code=${encodeURIComponent(majorCode)}&sub_code=${encodeURIComponent(subCode)}`
@@ -99,6 +130,7 @@ async function initRow(tr) {
     const selected = detailSelect.options[detailSelect.selectedIndex];
     if (!selected || !selected.value) {
       resetDetailFields();
+      recalcTotals();
       return;
     }
 
@@ -118,7 +150,9 @@ async function initRow(tr) {
   function calcAmount() {
     const unitPrice = parseInt(unitPriceInput.value || "0", 10);
     const qty       = parseInt(qtyInput.value || "0", 10);
-    amountInput.value = unitPrice * qty;
+    const amount    = unitPrice * (isNaN(qty) ? 0 : qty);
+    amountInput.value = amount;
+    recalcTotals();
   }
 
   function resetDetailFields() {
@@ -127,12 +161,41 @@ async function initRow(tr) {
     amountInput.value = '';
   }
 
+  // 数量変更 → 金額再計算
   qtyInput.addEventListener('input', calcAmount);
+
+  // 削除ボタン
+  if (deleteButton) {
+    deleteButton.onclick = () => {
+      const tbody = document.querySelector('#lines tbody');
+      if (tbody.rows.length > 1) {
+        tbody.removeChild(tr);
+      } else {
+        // 最後の1行は削除せず中身をリセット
+        tr.querySelectorAll('select').forEach(sel => {
+          sel.value = '';
+          if (sel.classList.contains('unit-type')) {
+            // 単位だけは '--' に戻す
+            sel.selectedIndex = 0;
+          }
+        });
+        tr.querySelectorAll('input').forEach(inp => {
+          if (inp.classList.contains('qty')) {
+            inp.value = 1;
+          } else {
+            inp.value = '';
+          }
+        });
+      }
+      recalcTotals();
+    };
+  }
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
   const firstRow = document.querySelector('#lines tbody tr');
   await initRow(firstRow);
+  recalcTotals(); // 初期表示
 
   document.getElementById('addRow').addEventListener('click', async () => {
     const tbody   = document.querySelector('#lines tbody');
@@ -153,5 +216,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     tbody.appendChild(newRow);
     await initRow(newRow);
+    recalcTotals();
   });
 });
