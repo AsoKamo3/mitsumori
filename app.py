@@ -35,7 +35,7 @@ def index():
 @app.route("/api/majors")
 def get_majors():
     """
-    大項目一覧を返す
+    大項目一覧を返す（科目）
     例: [{"code": "01", "name": "映像企画関連費"}, ...]
     """
     majors = {}
@@ -54,7 +54,7 @@ def get_subs():
     """
     指定された大項目に属する小項目一覧を返す
     クエリ: ?major_code=01
-    例: [{"code": "10", "name": "企画関連制作管理"}, ...]
+    例: [{"code": "50", "name": "アートディレクター費"}, ...]
     """
     major_code = request.args.get("major_code")
     subs = {}
@@ -73,7 +73,12 @@ def get_subs():
 @app.route("/api/details")
 def get_details():
     """
-    指定された大項目＋小項目に属する詳細一覧を返す
+    指定された大項目＋小項目に属する詳細一覧を返す（摘要候補）
+    クエリ: ?major_code=05&sub_code=50
+    例: [
+      {"code": "01", "name": "撮影用クレーン Crane", "unit_price": 150000},
+      ...
+    ]
     """
     major_code = request.args.get("major_code")
     sub_code = request.args.get("sub_code")
@@ -82,15 +87,12 @@ def get_details():
     for row in MASTER:
         if row["major_code"] == major_code and row["sub_code"] == sub_code:
             details.append({
-                "code": row["detail_code"],      # 01,02,03...
-                "name": row["detail_name"],      # 「摘要」として使う文字列
+                "code": row["detail_code"],      # 摘要コード 01,02,...
+                "name": row["detail_name"],      # 摘要（表示する文字列）
                 "unit_price": row["unit_price"], # 単価
             })
 
     return jsonify(details)
-
-
-
 
 
 if __name__ == "__main__":
