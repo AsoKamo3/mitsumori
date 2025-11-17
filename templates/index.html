@@ -14,28 +14,32 @@
         <th>費目コード</th>  <!-- 小項目のコード部分（選択） -->
         <th>費目</th>        <!-- 小項目の名称（自動表示） -->
         <th>摘要</th>        <!-- 旧: 担当（選択） -->
-        <th>コード</th>
-        <th>品目名</th>
+        <th>コード</th>      <!-- 01-50-01 など（管理用） -->
         <th>単価</th>
         <th>数量</th>
+        <th>単位</th>        <!-- new -->
         <th>金額</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <!-- 科目：01 映像企画関連費 などを選択 -->
+        <!-- 科目：01 映像企画関連費 など -->
         <td><select class="major"></select></td>
         <!-- 費目コード：10, 20, 50 など番号だけ選択 -->
         <td><select class="sub-code"></select></td>
         <!-- 費目：企画関連制作管理, アートディレクター費 など自動表示 -->
         <td><input class="sub-name" readonly></td>
-        <!-- 摘要：担当者名やバリエーション（Crane / Dolly など）を選択 -->
+        <!-- 摘要：担当やバリエーション（Crane / Dolly 等）を選択 -->
         <td><select class="detail"></select></td>
-        <!-- 以下は自動セット -->
+        <!-- 管理コード -->
         <td><input class="code" readonly></td>
-        <td><input class="name" readonly></td>
-        <td><input class="unit" readonly></td>
+        <!-- 単価（自動） -->
+        <td><input class="unit-price" readonly></td>
+        <!-- 数量 -->
         <td><input class="qty" type="number" value="1" min="1"></td>
+        <!-- 単位（式/日/時/本/台/人/人日/個/カット/点/枚...） -->
+        <td><select class="unit-type"></select></td>
+        <!-- 金額 -->
         <td><input class="amount" readonly></td>
       </tr>
     </tbody>
