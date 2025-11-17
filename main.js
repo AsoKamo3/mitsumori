@@ -8,17 +8,17 @@ async function fetchJSON(url) {
 }
 
 async function initRow(tr) {
-  const majorSelect   = tr.querySelector('.major');
-  const subCodeSelect = tr.querySelector('.sub-code');
-  const subNameInput  = tr.querySelector('.sub-name');
-  const detailSelect  = tr.querySelector('.detail');
-  const codeInput     = tr.querySelector('.code');
+  const majorSelect    = tr.querySelector('.major');
+  const subCodeSelect  = tr.querySelector('.sub-code');
+  const subNameInput   = tr.querySelector('.sub-name');
+  const detailSelect   = tr.querySelector('.detail');
+  const codeInput      = tr.querySelector('.code');
   const unitPriceInput = tr.querySelector('.unit-price');
-  const qtyInput      = tr.querySelector('.qty');
+  const qtyInput       = tr.querySelector('.qty');
   const unitTypeSelect = tr.querySelector('.unit-type');
-  const amountInput   = tr.querySelector('.amount');
+  const amountInput    = tr.querySelector('.amount');
 
-  // 単位選択肢をセット
+  // 単位の選択肢をセット
   unitTypeSelect.innerHTML = '<option value="">--</option>';
   UNIT_OPTIONS.forEach(u => {
     const opt = document.createElement('option');
@@ -37,7 +37,7 @@ async function initRow(tr) {
     majorSelect.appendChild(opt);
   });
 
-  // 科目が変わったとき → 費目コード一覧をロード
+  // 科目変更 → 費目コード一覧をロード
   majorSelect.addEventListener('change', async () => {
     const majorCode = majorSelect.value;
 
@@ -52,7 +52,7 @@ async function initRow(tr) {
       `/api/subs?major_code=${encodeURIComponent(majorCode)}`
     );
 
-    // コード→名称のマップをこの行の中だけで保持
+    // コード → 名称のマップをこの行の中だけで保持
     const subMap = {};
     subs.forEach(s => {
       subMap[s.code] = s.name; // "50" -> "アートディレクター費"
@@ -62,7 +62,7 @@ async function initRow(tr) {
       subCodeSelect.appendChild(opt);
     });
 
-    // 費目コードが変わったとき → 費目名＆摘要候補を更新
+    // 費目コード変更 → 費目名表示＆摘要候補をロード
     subCodeSelect.onchange = async () => {
       const subCode = subCodeSelect.value;
       subNameInput.value = subMap[subCode] || '';
@@ -77,19 +77,16 @@ async function initRow(tr) {
 
       details.forEach(d => {
         const opt = document.createElement('option');
-        opt.value = d.code; // detail_code（ここを 01,02,03 にすれば 01-50-01 形式が作れる）
-        // person があれば摘要として person を表示、なければ detail_name
-        const label = d.person && d.person.trim() !== "" ? d.person : d.name;
-        opt.textContent = label;
+        opt.value = d.code;           // 摘要コード 01,02,03...
+        opt.textContent = d.name;     // 摘要（detail_name）
         opt.dataset.unit = d.unit_price;
-        opt.dataset.person = d.person || '';
-        opt.dataset.detailName = d.name; // CSVのdetail_name（内部用）
+        opt.dataset.detailName = d.name;
         detailSelect.appendChild(opt);
       });
     };
   });
 
-  // 摘要が変わったとき → コード・単価・金額を更新
+  // 摘要変更 → コード・単価・金額を更新
   detailSelect.addEventListener('change', () => {
     const selected = detailSelect.options[detailSelect.selectedIndex];
     if (!selected || !selected.value) {
@@ -99,11 +96,11 @@ async function initRow(tr) {
 
     const majorCode  = majorSelect.value;
     const subCode    = subCodeSelect.value;
-    const detailCode = selected.value; // ここが "01" "02" などの摘要コード
+    const detailCode = selected.value; // detail_code
 
     const unit = selected.dataset.unit || '';
 
-    // コード: 01-50-01 形式
+    // 管理コード：01-50-01 形式
     codeInput.value = `${majorCode}-${subCode}-${detailCode}`;
     unitPriceInput.value = unit;
 
