@@ -17,9 +17,18 @@ def load_master():
     with csv_path.open(encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            # 空白を削っておく（コード系での比較が安定）
+            row["major_code"] = row.get("major_code", "").strip()
+            row["major_name"] = row.get("major_name", "").strip()
+            row["sub_code"] = row.get("sub_code", "").strip()
+            row["sub_name"] = row.get("sub_name", "").strip()
+            row["detail_code"] = row.get("detail_code", "").strip()
+            row["detail_name"] = row.get("detail_name", "").strip()
+
             # unit_price は整数に変換（空なら 0）
             price_str = row.get("unit_price", "").strip()
             row["unit_price"] = int(price_str) if price_str else 0
+
             MASTER.append(row)
 
 
@@ -42,7 +51,7 @@ def get_majors():
     for row in MASTER:
         code = row["major_code"]
         name = row["major_name"]
-        if code not in majors:
+        if code and code not in majors:
             majors[code] = name
 
     data = [{"code": c, "name": n} for c, n in majors.items()]
@@ -56,14 +65,14 @@ def get_subs():
     クエリ: ?major_code=01
     例: [{"code": "50", "name": "アートディレクター費"}, ...]
     """
-    major_code = request.args.get("major_code")
+    major_code = (request.args.get("major_code") or "").strip()
     subs = {}
 
     for row in MASTER:
         if row["major_code"] == major_code:
             code = row["sub_code"]
             name = row["sub_name"]
-            if code not in subs:
+            if code and code not in subs:
                 subs[code] = name
 
     data = [{"code": c, "name": n} for c, n in subs.items()]
@@ -80,8 +89,8 @@ def get_details():
       ...
     ]
     """
-    major_code = request.args.get("major_code")
-    sub_code = request.args.get("sub_code")
+    major_code = (request.args.get("major_code") or "").strip()
+    sub_code = (request.args.get("sub_code") or "").strip()
 
     details = []
     for row in MASTER:
