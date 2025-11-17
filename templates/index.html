@@ -10,12 +10,12 @@
   <table border="1" id="lines">
     <thead>
       <tr>
-        <th>大項目</th>
-        <th>小項目</th>
-        <th>内訳</th>
+        <th>科目</th>        <!-- 旧: 大項目 -->
+        <th>費目コード</th>  <!-- 小項目のコード部分（選択） -->
+        <th>費目</th>        <!-- 小項目の名称（自動表示） -->
+        <th>摘要</th>        <!-- 旧: 担当（選択） -->
         <th>コード</th>
         <th>品目名</th>
-        <th>担当</th>
         <th>単価</th>
         <th>数量</th>
         <th>金額</th>
@@ -23,12 +23,17 @@
     </thead>
     <tbody>
       <tr>
+        <!-- 科目：01 映像企画関連費 などを選択 -->
         <td><select class="major"></select></td>
-        <td><select class="sub"></select></td>
+        <!-- 費目コード：10, 20, 50 など番号だけ選択 -->
+        <td><select class="sub-code"></select></td>
+        <!-- 費目：企画関連制作管理, アートディレクター費 など自動表示 -->
+        <td><input class="sub-name" readonly></td>
+        <!-- 摘要：担当者名やバリエーション（Crane / Dolly など）を選択 -->
         <td><select class="detail"></select></td>
+        <!-- 以下は自動セット -->
         <td><input class="code" readonly></td>
         <td><input class="name" readonly></td>
-        <td><input class="person" readonly></td>
         <td><input class="unit" readonly></td>
         <td><input class="qty" type="number" value="1" min="1"></td>
         <td><input class="amount" readonly></td>
