@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>見積プロトタイプ</title>
+</head>
+<body>
+  <h1>見積プロトタイプ（CSVマスター版）</h1>
+
+  <table border="1" id="lines">
+    <thead>
+      <tr>
+        <th>大項目</th>
+        <th>小項目</th>
+        <th>内訳</th>
+        <th>コード</th>
+        <th>品目名</th>
+        <th>担当</th>
+        <th>単価</th>
+        <th>数量</th>
+        <th>金額</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><select class="major"></select></td>
+        <td><select class="sub"></select></td>
+        <td><select class="detail"></select></td>
+        <td><input class="code" readonly></td>
+        <td><input class="name" readonly></td>
+        <td><input class="person" readonly></td>
+        <td><input class="unit" readonly></td>
+        <td><input class="qty" type="number" value="1" min="1"></td>
+        <td><input class="amount" readonly></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <button id="addRow">行を追加</button>
+
+  <script src="/static/main.js"></script>
+</body>
+</html>
